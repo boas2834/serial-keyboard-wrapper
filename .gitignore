@@ -1,0 +1,10 @@
+.dotnet/
+.dotnet-home/
+.nuget-packages/
+artifacts/
+bin/
+obj/
+.vs/
+*.user
+dotnet-install.ps1
+
