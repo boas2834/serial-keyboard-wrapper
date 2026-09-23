@@ -32,5 +32,3 @@ dotnet test SerialHidWrapper.sln -c Release
 dotnet publish src\SerialHidWrapper\SerialHidWrapper.csproj -c Release -r win-x64 --self-contained true -o artifacts\publish\win-x64
 dotnet publish src\SerialHidWrapper\SerialHidWrapper.csproj -c Release -r win-x86 --self-contained true -o artifacts\publish\win-x86
 ```
-
-Die portable Einzeldatei wird je nach Zielarchitektur als `artifacts\publish\win-x64\SerialHidWrapper.exe` bzw. `artifacts\publish\win-x86\SerialHidWrapper.exe` erzeugt. Die x86-Variante läuft auch auf 32-Bit-Windows.
