@@ -1,6 +1,6 @@
-# Serial HID Wrapper
+# Serial non-HID Wrapper
 
-Serial HID Wrapper ist eine kleine Windows-Tray-Anwendung, die Text von einem seriell angeschlossenen Barcodescanner liest und wie Tastatureingaben an das aktuell aktive Fenster sendet.
+Serial non-HID Wrapper ist eine kleine Windows-Tray-Anwendung, die Text von einem seriell angeschlossenen Barcodescanner liest und wie Tastatureingaben an das aktuell aktive Fenster sendet.
 
 > Die Anwendung installiert keinen HID-Treiber und erscheint daher nicht als separates Eingabegerät im Windows-Gerätemanager. Die Ausgabe erfolgt über die Windows-API `SendInput`.
 
