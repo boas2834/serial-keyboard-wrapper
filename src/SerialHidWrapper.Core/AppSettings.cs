@@ -16,6 +16,8 @@ public sealed class AppSettings
     public string StopBits { get; set; } = "One";
     public int InactivityTimeoutMs { get; set; } = 200;
     public OutputSuffix Suffix { get; set; } = OutputSuffix.Enter;
+    public bool DtrEnable { get; set; } = true;
+    public bool RtsEnable { get; set; } = true;
     public bool AutoConnect { get; set; } = true;
     public bool AutoStart { get; set; }
 
@@ -48,6 +50,8 @@ public sealed class AppSettings
         StopBits = StopBits,
         InactivityTimeoutMs = InactivityTimeoutMs,
         Suffix = Suffix,
+        DtrEnable = DtrEnable,
+        RtsEnable = RtsEnable,
         AutoConnect = AutoConnect,
         AutoStart = AutoStart
     };
@@ -55,4 +59,3 @@ public sealed class AppSettings
     public static readonly string[] AllowedParity = ["None", "Odd", "Even", "Mark", "Space"];
     public static readonly string[] AllowedStopBits = ["One", "OnePointFive", "Two"];
 }
-

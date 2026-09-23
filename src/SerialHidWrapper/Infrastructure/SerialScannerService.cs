@@ -17,6 +17,7 @@ internal readonly record struct ScannerStatus(ScannerConnectionState State, stri
 internal interface ISerialScannerService : IDisposable
 {
     event Action<string>? ScanReceived;
+    event Action<string>? RawDataReceived;
     event Action<ScannerStatus>? StatusChanged;
     event Action<string>? NonFatalError;
 
@@ -47,6 +48,7 @@ internal sealed class SerialScannerService : ISerialScannerService
     }
 
     public event Action<string>? ScanReceived;
+    public event Action<string>? RawDataReceived;
     public event Action<ScannerStatus>? StatusChanged;
     public event Action<string>? NonFatalError;
 
@@ -155,6 +157,8 @@ internal sealed class SerialScannerService : ISerialScannerService
                 {
                     Encoding = Encoding.ASCII,
                     Handshake = Handshake.None,
+                    DtrEnable = settings.DtrEnable,
+                    RtsEnable = settings.RtsEnable,
                     ReadTimeout = settings.InactivityTimeoutMs,
                     WriteTimeout = 1000
                 };
@@ -232,6 +236,7 @@ internal sealed class SerialScannerService : ISerialScannerService
                 _inactivityTimer.Change(TimeSpan.FromMilliseconds(timeout), Timeout.InfiniteTimeSpan);
             }
 
+            RawDataReceived?.Invoke(chunk);
             PublishFrameResults(results);
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)

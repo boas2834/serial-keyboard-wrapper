@@ -12,8 +12,22 @@ internal sealed class SettingsForm : Form
     private readonly ComboBox _stopBits = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly NumericUpDown _timeout = new() { Minimum = 50, Maximum = 5000, Increment = 50, Dock = DockStyle.Fill };
     private readonly ComboBox _suffix = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
+    private readonly CheckBox _dtrEnable = new() { Text = "DTR aktivieren", AutoSize = true };
+    private readonly CheckBox _rtsEnable = new() { Text = "RTS aktivieren", AutoSize = true };
     private readonly CheckBox _autoConnect = new() { Text = "Beim Start automatisch verbinden", AutoSize = true };
     private readonly CheckBox _autoStart = new() { Text = "Mit Windows starten", AutoSize = true };
+    private readonly TextBox _diagnostics = new()
+    {
+        ReadOnly = true,
+        Multiline = true,
+        WordWrap = false,
+        ScrollBars = ScrollBars.Both,
+        Dock = DockStyle.Fill,
+        Height = 96
+    };
+    private string _connectionStatus = "Nicht verbunden";
+    private string _lastRawData = "–";
+    private string _lastCompleteScan = "–";
 
     public SettingsForm(AppSettings settings)
     {
@@ -25,7 +39,7 @@ internal sealed class SettingsForm : Form
         MinimizeBox = false;
         ShowInTaskbar = false;
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(470, 390);
+        ClientSize = new Size(500, 590);
 
         _parity.Items.AddRange(AppSettings.AllowedParity);
         _stopBits.Items.AddRange(AppSettings.AllowedStopBits);
@@ -43,7 +57,7 @@ internal sealed class SettingsForm : Form
         var grid = new TableLayoutPanel
         {
             ColumnCount = 2,
-            RowCount = 10,
+            RowCount = 11,
             Dock = DockStyle.Fill,
             Padding = new Padding(14),
             AutoSize = true
@@ -66,12 +80,28 @@ internal sealed class SettingsForm : Form
             Dock = DockStyle.Fill,
             AutoSize = true
         };
+        optionsPanel.Controls.Add(_dtrEnable);
+        optionsPanel.Controls.Add(_rtsEnable);
         optionsPanel.Controls.Add(_autoConnect);
         optionsPanel.Controls.Add(_autoStart);
         grid.Controls.Add(optionsPanel, 0, 7);
         grid.SetColumnSpan(optionsPanel, 2);
 
-        var okButton = new Button { Text = "Speichern", AutoSize = true };
+        AddRow(grid, 8, "Diagnose:", _diagnostics);
+
+        var outputHint = new Label
+        {
+            Text = "Hinweis: Solange dieses Einstellungsfenster oder das Tray-Menü geöffnet ist, " +
+                "bleibt die Tastaturausgabe pausiert. Zum Testen das Fenster schließen und das gewünschte Eingabefeld aktivieren.",
+            AutoSize = true,
+            MaximumSize = new Size(450, 0),
+            ForeColor = SystemColors.GrayText,
+            Padding = new Padding(0, 8, 0, 8)
+        };
+        grid.Controls.Add(outputHint, 0, 9);
+        grid.SetColumnSpan(outputHint, 2);
+
+        var okButton = new Button { Text = "Speichern und verbinden", AutoSize = true };
         var cancelButton = new Button { Text = "Abbrechen", AutoSize = true, DialogResult = DialogResult.Cancel };
         okButton.Click += SaveAndClose;
         var buttons = new FlowLayoutPanel
@@ -82,7 +112,7 @@ internal sealed class SettingsForm : Form
         };
         buttons.Controls.Add(cancelButton);
         buttons.Controls.Add(okButton);
-        grid.Controls.Add(buttons, 0, 9);
+        grid.Controls.Add(buttons, 0, 10);
         grid.SetColumnSpan(buttons, 2);
 
         Controls.Add(grid);
@@ -96,11 +126,49 @@ internal sealed class SettingsForm : Form
         _stopBits.SelectedItem = settings.StopBits;
         _timeout.Value = Math.Clamp(settings.InactivityTimeoutMs, (int)_timeout.Minimum, (int)_timeout.Maximum);
         _suffix.SelectedIndex = (int)settings.Suffix;
+        _dtrEnable.Checked = settings.DtrEnable;
+        _rtsEnable.Checked = settings.RtsEnable;
         _autoConnect.Checked = settings.AutoConnect;
         _autoStart.Checked = settings.AutoStart;
+        RefreshDiagnostics();
     }
 
     public AppSettings Settings { get; private set; }
+
+    public void ShowLastScan(string scan, DateTime receivedAt)
+    {
+        ArgumentNullException.ThrowIfNull(scan);
+        _lastCompleteScan = $"{receivedAt:HH:mm:ss} · {scan.Length} Zeichen · {EscapeControlCharacters(scan)}";
+        RefreshDiagnostics();
+    }
+
+    public void ShowRawData(string data, DateTime receivedAt)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        _lastRawData = $"{receivedAt:HH:mm:ss.fff} · {data.Length} Zeichen · {EscapeControlCharacters(data)}";
+        RefreshDiagnostics();
+    }
+
+    public void ShowConnectionStatus(string status)
+    {
+        _connectionStatus = status;
+        RefreshDiagnostics();
+    }
+
+    private void RefreshDiagnostics()
+    {
+        _diagnostics.Text = $"Status: {_connectionStatus}{Environment.NewLine}" +
+            $"Letzte Rohdaten: {_lastRawData}{Environment.NewLine}" +
+            $"Letzter Scan: {_lastCompleteScan}";
+        _diagnostics.SelectionStart = 0;
+        _diagnostics.SelectionLength = 0;
+    }
+
+    private static string EscapeControlCharacters(string value) => value
+        .Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("\r", "\\r", StringComparison.Ordinal)
+        .Replace("\n", "\\n", StringComparison.Ordinal)
+        .Replace("\t", "\\t", StringComparison.Ordinal);
 
     private static void AddRow(TableLayoutPanel grid, int row, string label, Control control)
     {
@@ -145,6 +213,8 @@ internal sealed class SettingsForm : Form
             StopBits = _stopBits.SelectedItem?.ToString() ?? "One",
             InactivityTimeoutMs = Decimal.ToInt32(_timeout.Value),
             Suffix = (OutputSuffix)Math.Max(0, _suffix.SelectedIndex),
+            DtrEnable = _dtrEnable.Checked,
+            RtsEnable = _rtsEnable.Checked,
             AutoConnect = _autoConnect.Checked,
             AutoStart = _autoStart.Checked
         };

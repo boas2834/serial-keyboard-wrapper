@@ -81,7 +81,24 @@ internal sealed class WindowsKeyboardOutput : IKeyboardOutput
     private struct InputUnion
     {
         [FieldOffset(0)]
+        public MOUSEINPUT Mouse;
+
+        [FieldOffset(0)]
         public KEYBDINPUT Keyboard;
+
+        [FieldOffset(0)]
+        public HARDWAREINPUT Hardware;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MOUSEINPUT
+    {
+        public int X;
+        public int Y;
+        public uint MouseData;
+        public uint Flags;
+        public uint Time;
+        public UIntPtr ExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -92,5 +109,13 @@ internal sealed class WindowsKeyboardOutput : IKeyboardOutput
         public uint Flags;
         public uint Time;
         public UIntPtr ExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct HARDWAREINPUT
+    {
+        public uint Message;
+        public ushort ParameterLow;
+        public ushort ParameterHigh;
     }
 }

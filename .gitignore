@@ -1,5 +1,6 @@
 .dotnet/
 .dotnet-home/
+.appdata/
 .nuget-packages/
 artifacts/
 bin/
@@ -7,4 +8,3 @@ obj/
 .vs/
 *.user
 dotnet-install.ps1
-

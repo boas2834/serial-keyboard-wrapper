@@ -8,7 +8,7 @@
     <AssemblyName>SerialHidWrapper</AssemblyName>
     <RootNamespace>SerialHidWrapper</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

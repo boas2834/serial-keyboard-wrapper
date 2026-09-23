@@ -10,6 +10,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly ISerialScannerService _scanner;
     private readonly ScanOutputDispatcher _outputDispatcher;
     private readonly Control _uiDispatcher;
+    private readonly Icon _applicationIcon;
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _menu;
     private readonly ToolStripMenuItem _statusItem;
@@ -20,6 +21,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private AppSettings _settings;
     private ScannerStatus _scannerStatus = new(ScannerConnectionState.Disconnected, "Nicht verbunden");
+    private SettingsForm? _settingsForm;
+    private string? _lastRawData;
+    private DateTime? _lastRawDataAt;
+    private string? _lastReceivedScan;
+    private DateTime? _lastReceivedAt;
     private bool _explicitlyPaused;
     private bool _menuIsOpen;
     private bool _settingsAreOpen;
@@ -31,6 +37,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _settingsStore = settingsStore;
         _scanner = new SerialScannerService();
         _outputDispatcher = new ScanOutputDispatcher(new WindowsKeyboardOutput());
+        _applicationIcon = BarcodeIconFactory.Create();
 
         _uiDispatcher = new Control();
         _uiDispatcher.CreateControl();
@@ -70,7 +77,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = _applicationIcon,
             Text = "Serial HID Wrapper – Nicht verbunden",
             ContextMenuStrip = _menu,
             Visible = true
@@ -78,6 +85,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _notifyIcon.DoubleClick += (_, _) => ShowSettings();
 
         _scanner.ScanReceived += HandleScanReceived;
+        _scanner.RawDataReceived += HandleRawDataReceived;
         _scanner.StatusChanged += status => RunOnUiThread(() => ApplyStatus(status));
         _scanner.NonFatalError += message => RunOnUiThread(() => ShowNonFatalError(message));
 
@@ -133,11 +141,17 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _settingsAreOpen = true;
         RefreshOutputPauseState();
         var oldSettings = _settings;
-        var wasConnectionRequested = _scanner.IsConnectionRequested;
 
         try
         {
             using var dialog = new SettingsForm(_settings);
+            _settingsForm = dialog;
+            dialog.ShowConnectionStatus(_scannerStatus.Message);
+            if (_lastRawData is not null && _lastRawDataAt is not null)
+                dialog.ShowRawData(_lastRawData, _lastRawDataAt.Value);
+            if (_lastReceivedScan is not null && _lastReceivedAt is not null)
+                dialog.ShowLastScan(_lastReceivedScan, _lastReceivedAt.Value);
+
             if (dialog.ShowDialog() != DialogResult.OK)
                 return;
 
@@ -148,14 +162,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _settings = updated;
             PersistSettings();
             _autoStartItem.Checked = _settings.AutoStart;
-
-            var shouldConnect = wasConnectionRequested ||
-                (string.IsNullOrWhiteSpace(oldSettings.PortName) && _settings.AutoConnect);
-            if (shouldConnect)
-                _scanner.Start(_settings);
+            _scanner.Start(_settings);
         }
         finally
         {
+            _settingsForm = null;
             _settingsAreOpen = false;
             RefreshOutputPauseState();
         }
@@ -163,12 +174,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void HandleScanReceived(string scan)
     {
+        var timestamp = DateTime.Now;
+        RunOnUiThread(() =>
+        {
+            _lastReceivedScan = scan;
+            _lastReceivedAt = timestamp;
+            _settingsForm?.ShowLastScan(scan, timestamp);
+        });
+
         try
         {
             if (!_outputDispatcher.Dispatch(scan, _settings.Suffix))
                 return;
 
-            var timestamp = DateTime.Now;
             RunOnUiThread(() =>
             {
                 _lastScanItem.Text = $"Letzter Scan: {timestamp:HH:mm:ss} ({scan.Length} Zeichen)";
@@ -180,16 +198,22 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
+    private void HandleRawDataReceived(string data)
+    {
+        var timestamp = DateTime.Now;
+        RunOnUiThread(() =>
+        {
+            _lastRawData = data;
+            _lastRawDataAt = timestamp;
+            _settingsForm?.ShowRawData(data, timestamp);
+        });
+    }
+
     private void ApplyStatus(ScannerStatus status)
     {
         _scannerStatus = status;
+        _settingsForm?.ShowConnectionStatus(status.Message);
         _connectionItem.Text = _scanner.IsConnectionRequested ? "Trennen" : "Verbinden";
-        _notifyIcon.Icon = status.State switch
-        {
-            ScannerConnectionState.Connected => SystemIcons.Information,
-            ScannerConnectionState.WaitingForPort => SystemIcons.Warning,
-            _ => SystemIcons.Application
-        };
         RefreshStatusDisplay();
     }
 
@@ -291,9 +315,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _notifyIcon.Visible = false;
         _scanner.Dispose();
         _notifyIcon.Dispose();
+        _applicationIcon.Dispose();
         _menu.Dispose();
         _uiDispatcher.Dispose();
         base.ExitThreadCore();
     }
 }
-
